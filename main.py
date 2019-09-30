@@ -7,8 +7,12 @@ import pint
 
 from dataclasses import PFR, CSTR, CSTRSeries, Trial
 
+
+# Setup
 ureg = pint.UnitRegistry()
 Q_ = ureg.Quantity
+figures_dir = Path("figures")
+figures_dir.mkdir(parents=True, exist_ok=True)
 
 
 def reynolds(rho, D, v, mu):
@@ -27,8 +31,12 @@ rho = Q_("997 kg per cubic meter")
 mu = Q_("0.89 mPa * s")
 
 # Reactor specifications
-short_pfr = PFR(length=Q_("39 feet"), OD=Q_("0.375 inch"), wall_thickness=Q_("0.062 inch"))
-long_pfr = PFR(length=Q_("100 feet"), OD=Q_("0.25 inch"), wall_thickness=Q_("0.047 inch"))
+short_pfr = PFR(
+    length=Q_("39 feet"), OD=Q_("0.375 inch"), wall_thickness=Q_("0.062 inch")
+)
+long_pfr = PFR(
+    length=Q_("100 feet"), OD=Q_("0.25 inch"), wall_thickness=Q_("0.047 inch")
+)
 cstr_series = CSTRSeries(volume=Q_("3 liter"))
 
 # Instantiate list of Trial objects from csv files
@@ -77,6 +85,10 @@ for trial in pfr_trials:
     flowrate = trial.flowrate.magnitude
     diameter = trial.reactor.ID.magnitude
     label_text = f"Flowrate: {flowrate} mL/min, Diameter: {diameter} in."
-    ax1.plot(trial.data["Time (s)"], trial.data["CH3 Conductivity (muS/cm)"], label=label_text)
+    ax1.plot(
+        trial.data["Time (s)"],
+        trial.data["CH3 Conductivity (muS/cm)"],
+        label=label_text,
+    )
 ax1.legend()
 plt.show()

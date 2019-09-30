@@ -21,12 +21,14 @@ def labquest_txt_to_df(txtfile: Path) -> pd.DataFrame:
     cond1 = [np.float64(m.group(2)) for m in re.finditer(r, text)]
     cond2 = [np.float64(m.group(3)) for m in re.finditer(r, text)]
     cond3 = [np.float64(m.group(4)) for m in re.finditer(r, text)]
-    df = pd.DataFrame({
-        "Time (s)": time,
-        "CH1 Conductivity (muS/cm)": cond1,
-        "CH2 Conductivity (muS/cm)": cond2,
-        "CH3 Conductivity (muS/cm)": cond3,
-    })
+    df = pd.DataFrame(
+        {
+            "Time (s)": time,
+            "CH1 Conductivity (muS/cm)": cond1,
+            "CH2 Conductivity (muS/cm)": cond2,
+            "CH3 Conductivity (muS/cm)": cond3,
+        }
+    )
     return df
 
 

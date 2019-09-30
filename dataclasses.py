@@ -9,13 +9,11 @@ Q_ = ureg.Quantity
 
 
 class Reactor:
-
     def __init__(self, design: str):
         self.design = design
 
 
 class PFR(Reactor):
-
     def __init__(self, length, OD, wall_thickness):
         super().__init__("PFR")
         self.length = length
@@ -25,7 +23,6 @@ class PFR(Reactor):
 
 
 class CSTR(Reactor):
-
     def __init__(self, volume, geometry):
         super().__init__("CSTR")
         self.volume = volume
@@ -33,14 +30,12 @@ class CSTR(Reactor):
 
 
 class CSTRSeries(Reactor):
-
     def __init__(self, volume):
         super().__init__("CSTR Series")
         self.volume = volume
 
 
 class Trial:
-
     def __init__(self, csv: Path, reactor: Reactor, flowrate, agitation: int = None):
         self.csv = csv
         self.reactor = reactor
