@@ -3,7 +3,9 @@ import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import pint
+
 
 from dataclasses import PFR, CSTR, CSTRSeries, Trial
 
@@ -11,8 +13,11 @@ from dataclasses import PFR, CSTR, CSTRSeries, Trial
 # Setup
 ureg = pint.UnitRegistry()
 Q_ = ureg.Quantity
+ureg.setup_matplotlib()
 figures_dir = Path("figures")
 figures_dir.mkdir(parents=True, exist_ok=True)
+plt.rcParams["font.family"] = "STIXGeneral"
+plt.rcParams["mathtext.fontset"] = "stix"
 
 
 def reynolds(rho, D, v, mu):
@@ -78,7 +83,7 @@ for trial in pfr_trials:
 
 # PFR conductivity plots
 fig = plt.figure()
-ax1 = fig.add_subplot(1, 1, 1)
+ax1 = fig.add_subplot(111)
 ax1.set_xlabel("Time (s)")
 ax1.set_ylabel("Conductivity (mSiemens/cm)")
 for trial in pfr_trials:
@@ -92,3 +97,20 @@ for trial in pfr_trials:
     )
 ax1.legend()
 plt.show()
+
+# PFR Vol-Flowrate-Reynolds plot
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+short = [trial for trial in pfr_trials if trial.reactor is short_pfr]
+long = [trial for trial in pfr_trials if trial.reactor is long_pfr]
+for trials in [short, long]:
+    x = [trial.flowrate.to("mL/min").magnitude for trial in trials]
+    y = [trial.reynolds.magnitude for trial in trials]
+    ax1.plot(x, y, "o", markerfacecolor="w", label=f"{trials[0].reactor.length}")
+ax1.set_xlabel("Flowrate (mL/min)")
+ax1.set_ylabel("Reynolds Number")
+ax1.legend()
+plt.savefig(Path(figures_dir / "pfr_3dplot.pdf"), bbox_inches="tight")
+plt.show()
+
+# TODO: Plot mean residence time vs. Reynolds number
