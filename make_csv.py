@@ -21,14 +21,33 @@ def labquest_txt_to_df(txtfile: Path) -> pd.DataFrame:
     cond1 = [np.float64(m.group(2)) for m in re.finditer(r, text)]
     cond2 = [np.float64(m.group(3)) for m in re.finditer(r, text)]
     cond3 = [np.float64(m.group(4)) for m in re.finditer(r, text)]
-    df = pd.DataFrame(
-        {
-            "Time (s)": time,
-            "CH1 Conductivity (muS/cm)": cond1,
-            "CH2 Conductivity (muS/cm)": cond2,
-            "CH3 Conductivity (muS/cm)": cond3,
-        }
-    )
+    if len(time) > 0:
+        df = pd.DataFrame(
+            {
+                "Time (s)": time,
+                "CH1 Conductivity (muS/cm)": cond1,
+                "CH2 Conductivity (muS/cm)": cond2,
+                "CH3 Conductivity (muS/cm)": cond3,
+            }
+        )
+    else:
+        r_short = re.compile(r"(\d+)\t(.+)\t(.+)\t")
+        time = [np.float64(m.group(1)) for m in re.finditer(r_short, text)]
+        cond1 = [np.float64(m.group(2)) for m in re.finditer(r_short, text)]
+        cond2 = [np.float64(m.group(3)) for m in re.finditer(r_short, text)]
+        if len(time) > 0:
+            df = pd.DataFrame(
+                {
+                    "Time (s)": time,
+                    "CH1 Conductivity (muS/cm)": cond1,
+                    "CH2 Conductivity (muS/cm)": cond2,
+                }
+            )
+        else:
+            r_shorter = re.compile(r"(\d+)\t(.+)\t")
+            time = [np.float64(m.group(1)) for m in re.finditer(r_shorter, text)]
+            cond1 = [np.float64(m.group(2)) for m in re.finditer(r_shorter, text)]
+            df = pd.DataFrame({"Time (s)": time, "CH1 Conductivity (muS/cm)": cond1})
     return df
 
 

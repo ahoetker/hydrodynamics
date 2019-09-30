@@ -110,7 +110,7 @@ for trials in [short, long]:
 ax1.set_xlabel("Flowrate (mL/min)")
 ax1.set_ylabel("Reynolds Number")
 ax1.legend()
-plt.savefig(Path(figures_dir / "pfr_3dplot.pdf"), bbox_inches="tight")
+plt.savefig(Path(figures_dir / "pfr_flowrate_reynolds.pdf"), bbox_inches="tight")
 plt.show()
 
 # TODO: Plot mean residence time vs. Reynolds number
