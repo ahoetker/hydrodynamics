@@ -82,35 +82,41 @@ for trial in pfr_trials:
     trial.set_reynolds(N_Re)
 
 # PFR conductivity plots
-fig = plt.figure()
-ax1 = fig.add_subplot(111)
-ax1.set_xlabel("Time (s)")
-ax1.set_ylabel("Conductivity (mSiemens/cm)")
-for trial in pfr_trials:
-    flowrate = trial.flowrate.magnitude
-    diameter = trial.reactor.ID.magnitude
-    label_text = f"Flowrate: {flowrate} mL/min, Diameter: {diameter} in."
-    ax1.plot(
-        trial.data["Time (s)"],
-        trial.data["CH3 Conductivity (muS/cm)"],
-        label=label_text,
-    )
-ax1.legend()
-plt.show()
+# fig = plt.figure()
+# ax1 = fig.add_subplot(111)
+# ax1.set_xlabel("Time (s)")
+# ax1.set_ylabel("Conductivity (mSiemens/cm)")
+# for trial in pfr_trials:
+#     flowrate = trial.flowrate.magnitude
+#     diameter = trial.reactor.ID.magnitude
+#     label_text = f"Flowrate: {flowrate} mL/min, Diameter: {diameter} in."
+#     ax1.plot(
+#         trial.data["Time (s)"],
+#         trial.data["CH3 Conductivity (muS/cm)"],
+#         label=label_text,
+#     )
+# ax1.legend()
+# plt.show()
 
 # PFR Vol-Flowrate-Reynolds plot
 fig = plt.figure(figsize=(5, 3), dpi=300)
 ax1 = fig.add_subplot(111)
 short = [trial for trial in pfr_trials if trial.reactor is short_pfr]
 long = [trial for trial in pfr_trials if trial.reactor is long_pfr]
-for trials in [short, long]:
-    x = [trial.flowrate.to("mL/min").magnitude for trial in trials]
-    y = [trial.reynolds.magnitude for trial in trials]
-    ax1.plot(x, y, "o", markerfacecolor="w", label=f"{trials[0].reactor.length}")
+for split_trials in [short, long]:
+    x = [trial.flowrate.to("mL/min").magnitude for trial in split_trials]
+    y = [trial.reynolds.magnitude for trial in split_trials]
+    ax1.plot(x, y, "o", markerfacecolor="w", label=f"{split_trials[0].reactor.length}")
 ax1.set_xlabel("Flowrate (mL/min)")
 ax1.set_ylabel("Reynolds Number")
 ax1.legend()
 plt.savefig(Path(figures_dir / "pfr_flowrate_reynolds.pdf"), bbox_inches="tight")
 plt.show()
+
+# Preliminary conductivity/cumsum plot for sanity check
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+pfr_spike = pfr_trials[0]
+t = pfr_spike.data["Time (s)"]
 
 # TODO: Plot mean residence time vs. Reynolds number
