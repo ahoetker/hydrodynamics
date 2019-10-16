@@ -23,7 +23,7 @@ plt.rcParams["mathtext.fontset"] = "stix"
 
 
 def reynolds(rho, D, v, mu):
-    """Dimensionless Reynolds number
+    """ Dimensionless Reynolds number
     """
     rho_SI = rho.to("kg per cubic meter")
     D_SI = D.to("meter")
@@ -31,6 +31,33 @@ def reynolds(rho, D, v, mu):
     mu_SI = mu.to("kg per meter per second")
     N_Re = ((rho_SI * D_SI * v_SI) / mu_SI).to("dimensionless")
     return N_Re
+
+
+def smooth(x, window_len=11, window="hanning"):
+    """ Apply smoothing to noisy data.
+    See: https://en.wikipedia.org/wiki/Window_function#Cosine-sum_windows
+    """
+    if x.ndim != 1:
+        raise ValueError("smooth only accepts 1-d arrays.")
+    if x.size < window_len:
+        raise ValueError("Input vector needs to be bigger than window size.")
+
+    if window_len < 3:
+        return x
+
+    if window not in ["flat", "hanning", "hamming", "bartlett", "blackman"]:
+        raise ValueError(
+            "Window is one of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+        )
+
+    s = np.r_[x[window_len - 1 : 0 : -1], x, x[-2 : -window_len - 1 : -1]]
+    if window == "flat":
+        w = np.ones(window_len, "d")
+    else:
+        w = eval("np." + window + "(window_len)")
+
+    y = np.convolve(w / w.sum(), s, mode="valid")
+    return y
 
 
 def rtd(conductivity: np.array):
@@ -41,7 +68,6 @@ def rtd(conductivity: np.array):
     return E.to("1 / second")
 
 
-# TODO Implement F(t)
 def cum_dist(conductivity: np.array):
     """ This is the 'F' function
     """
@@ -124,6 +150,65 @@ plt.savefig(Path(figures_dir / "pfr_flowrate_reynolds.pdf"), bbox_inches="tight"
 plt.show()
 
 # TODO Plot: Conductivity vs time
+
+## Conductivity for PFRs, all trials, no smoothing
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("Conductivity (muS / cm)")
+for trial in pfr_trials:
+    y = trial.corrected_cond()
+    ax1.plot(y)
+plt.savefig(str(figures_dir / "pfr_conductivity_all_nosmooth.pdf"), bbox_inches="tight")
+plt.show()
+
+## Conductivity for PFRs, all trials
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("Conductivity (muS / cm)")
+for trial in pfr_trials:
+    y = smooth(trial.corrected_cond(), 11, "hamming")
+    ax1.plot(y)
+plt.savefig(str(figures_dir / "pfr_conductivity_all.pdf"), bbox_inches="tight")
+plt.show()
+
+## Conductivity for PFRs, color coded for length
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("Conductivity (muS / cm)")
+for trial in pfr_trials:
+    y = smooth(trial.corrected_cond(), 11, "hamming")
+    if trial.reactor.label == "short PFR":
+        ax1.plot(y, label="short PFR", color=colors[0]["color"])
+    elif trial.reactor.label == "long PFR":
+        ax1.plot(y, label="long PFR", color=colors[1]["color"])
+    handles, labels = ax1.get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+    ax1.legend(by_label.values(), by_label.keys())
+plt.savefig(str(figures_dir / "pfr_conductivity_by_length.pdf"), bbox_inches="tight")
+plt.show()
+
+## E(t) for PFRs, color coded for flowrate
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("Conductivity (muS / cm)")
+for trial in pfr_trials:
+    y = smooth(trial.corrected_cond(), 11, "hamming")
+    if trial.flowrate == Q_("400 mL/min"):
+        ax1.plot(y, label="400 mL/min", color=colors[0]["color"])
+    elif trial.flowrate == Q_("800 mL/min"):
+        ax1.plot(y, label="800 mL/min", color=colors[1]["color"])
+    elif trial.flowrate == Q_("1200 mL/min"):
+        ax1.plot(y, label="1200 mL/min", color=colors[2]["color"])
+    handles, labels = ax1.get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+    ax1.legend(by_label.values(), by_label.keys())
+plt.savefig(str(figures_dir / "pfr_conductivity_by_flowrate.pdf"), bbox_inches="tight")
+plt.show()
+
 # TODO Plot: E(t) vs time
 
 ## E(t) for PFRs, all trials
@@ -132,11 +217,10 @@ ax1 = fig.add_subplot(111)
 ax1.set_xlabel("Time (s)")
 ax1.set_ylabel("E(t) (1/s)")
 for trial in pfr_trials:
-    cond = trial.get_cond()
-    cond = Q_(cond - trial.baseline, "microsiemens / cm")
-    x = trial.get_timeseries()
+    cond = smooth(trial.corrected_cond(), 11, "hamming")
+    cond = Q_(cond, "microsiemens / cm")
     y = rtd(cond).magnitude
-    ax1.plot(x, y)
+    ax1.plot(y)
 plt.savefig(str(figures_dir / "E_pfr_all.pdf"), bbox_inches="tight")
 plt.show()
 
@@ -146,18 +230,38 @@ ax1 = fig.add_subplot(111)
 ax1.set_xlabel("Time (s)")
 ax1.set_ylabel("E(t) (1/s)")
 for trial in pfr_trials:
-    cond = trial.get_cond()
-    cond = Q_(cond - trial.baseline, "microsiemens / cm")
-    x = trial.get_timeseries()
+    cond = smooth(trial.corrected_cond(), 11, "hamming")
+    cond = Q_(cond, "microsiemens / cm")
     y = rtd(cond).magnitude
     if trial.reactor.label == "short PFR":
-        ax1.plot(x, y, label="short PFR", color=colors[0]["color"])
+        ax1.plot(y, label="short PFR", color=colors[0]["color"])
     elif trial.reactor.label == "long PFR":
-        ax1.plot(x, y, label="long PFR", color=colors[1]["color"])
+        ax1.plot(y, label="long PFR", color=colors[1]["color"])
     handles, labels = ax1.get_legend_handles_labels()
     by_label = OrderedDict(zip(labels, handles))
     ax1.legend(by_label.values(), by_label.keys())
 plt.savefig(str(figures_dir / "E_pfr_by_length.pdf"), bbox_inches="tight")
+plt.show()
+
+## E(t) for PFRs, color coded for flowrate
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("E(t) (1/s)")
+for trial in pfr_trials:
+    cond = smooth(trial.corrected_cond(), 11, "hamming")
+    cond = Q_(cond, "microsiemens / cm")
+    y = rtd(cond).magnitude
+    if trial.flowrate == Q_("400 mL/min"):
+        ax1.plot(y, label="400 mL/min", color=colors[0]["color"])
+    elif trial.flowrate == Q_("800 mL/min"):
+        ax1.plot(y, label="800 mL/min", color=colors[1]["color"])
+    elif trial.flowrate == Q_("1200 mL/min"):
+        ax1.plot(y, label="1200 mL/min", color=colors[2]["color"])
+    handles, labels = ax1.get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+    ax1.legend(by_label.values(), by_label.keys())
+plt.savefig(str(figures_dir / "E_pfr_by_flowrate.pdf"), bbox_inches="tight")
 plt.show()
 
 # TODO Plot: F(t) vs time
@@ -166,14 +270,42 @@ ax1 = fig.add_subplot(111)
 ax1.set_xlabel("Time (s)")
 ax1.set_ylabel("F(t)")
 for trial in pfr_trials:
-    cond = trial.get_cond()
-    cond = Q_(cond - trial.baseline, "microsiemens / cm")
-    x = trial.get_timeseries()
+    cond = smooth(trial.corrected_cond(), 11, "hamming")
+    cond = Q_(cond, "microsiemens / cm")
     y = cum_dist(cond).magnitude
-    ax1.plot(x, y)
+    ax1.plot(y)
+plt.savefig(str(figures_dir / "F_pfr_all.pdf"), bbox_inches="tight")
 plt.show()
 # TODO Plot: t*E(t) vs time
+
+# %%
 # TODO Plot: E*(t-tm)^2 (plot whose integral represents variance)
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+t = pfr_trials[7]
+cond = smooth(t.corrected_cond(), 11, "hamming")
+cond = Q_(cond, "microsiemens / cm")
+E = rtd(cond).magnitude
+x = np.arange(1, len(E) + 1)
+y = E * (x - x.mean()) ** 2
+
+ax1.plot(y)
+plt.show()
+
+# %% Demo plot of smoothing
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("Conductivity (muS / cm)")
+t = pfr_trials[3]
+x = t.timeseries()
+y = t.corrected_cond()
+ys = smooth(y, 11, "hamming")
+ax1.plot(x, y, label="signal", linewidth=0.8)
+ax1.plot(ys, "-k", label="smooth")
+ax1.legend()
+plt.savefig(str(figures_dir / "smoothing_demo.pdf"), bbox_inches="tight")
+plt.show()
 
 
 # %% Tables

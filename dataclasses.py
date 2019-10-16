@@ -45,6 +45,7 @@ class Trial:
         with csv.open("r") as csvfile:
             self.data = pd.read_csv(csvfile)
         self.reynolds = None
+        self.baseline = None
 
     def set_baseline(self, baseline):
         self.baseline = baseline
@@ -52,13 +53,13 @@ class Trial:
     def set_reynolds(self, reynolds):
         self.reynolds = reynolds
 
-    def get_timeseries(self) -> np.array:
+    def timeseries(self) -> np.array:
         return self.data["Time (s)"]
 
-    def get_cond(self) -> np.array:
+    def corrected_cond(self) -> np.array:
         """ get largest-range conductivity series
         """
         cond_cols = [c for c in self.data.columns if "Cond" in c]
         ranges = [self.data[c].max() - self.data[c].min() for c in cond_cols]
         cond = self.data[cond_cols[ranges.index(max(ranges))]]
-        return cond
+        return cond - self.baseline
