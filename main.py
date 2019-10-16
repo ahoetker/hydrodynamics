@@ -1,23 +1,25 @@
-# The usual suspects
+# %% Setup
 import re
 from pathlib import Path
-
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import matplotlib as mpl
 import pint
-
-
+import numpy as np
+import pandas as pd
+from collections import OrderedDict
 from dataclasses import PFR, CSTR, CSTRSeries, Trial
 
-
-# Setup
 ureg = pint.UnitRegistry()
 Q_ = ureg.Quantity
 ureg.setup_matplotlib()
 figures_dir = Path("figures")
 figures_dir.mkdir(parents=True, exist_ok=True)
+colors = [k for k in mpl.rcParams["axes.prop_cycle"]]
 plt.rcParams["font.family"] = "STIXGeneral"
 plt.rcParams["mathtext.fontset"] = "stix"
+
+
+# %% Functions
 
 
 def reynolds(rho, D, v, mu):
@@ -31,20 +33,43 @@ def reynolds(rho, D, v, mu):
     return N_Re
 
 
-# Constant specifications
+def rtd(conductivity: np.array):
+    """ This is the 'E' function
+    """
+    cumsum = Q_(sum(conductivity.magnitude), "microsiemens / cm * second")
+    E = conductivity / cumsum
+    return E.to("1 / second")
+
+
+# TODO Implement F(t)
+def cum_dist(conductivity: np.array):
+    """ This is the 'F' function
+    """
+    E = rtd(conductivity)
+    F = Q_(np.cumsum(E).magnitude, "dimensionless")
+    return F
+
+
+# %% Specs
 rho = Q_("997 kg per cubic meter")
 mu = Q_("0.89 mPa * s")
 
 # Reactor specifications
 short_pfr = PFR(
-    length=Q_("39 feet"), OD=Q_("0.375 inch"), wall_thickness=Q_("0.062 inch")
+    length=Q_("39 feet"),
+    OD=Q_("0.375 inch"),
+    wall_thickness=Q_("0.062 inch"),
+    label="short PFR",
 )
 long_pfr = PFR(
-    length=Q_("100 feet"), OD=Q_("0.25 inch"), wall_thickness=Q_("0.047 inch")
+    length=Q_("100 feet"),
+    OD=Q_("0.25 inch"),
+    wall_thickness=Q_("0.047 inch"),
+    label="long PFR",
 )
 cstr_series = CSTRSeries(volume=Q_("3 liter"))
 
-# Instantiate list of Trial objects from csv files
+# %% Runtime data manipulation
 trials = []
 data_dir = Path("data")
 for csvfile in data_dir.glob("**/*.csv"):
@@ -80,25 +105,10 @@ for trial in pfr_trials:
     velocity = trial.flowrate / trial.reactor.area
     N_Re = reynolds(rho, trial.reactor.ID, velocity, mu)
     trial.set_reynolds(N_Re)
+    trial.set_baseline(980)
 
-# PFR conductivity plots
-# fig = plt.figure()
-# ax1 = fig.add_subplot(111)
-# ax1.set_xlabel("Time (s)")
-# ax1.set_ylabel("Conductivity (mSiemens/cm)")
-# for trial in pfr_trials:
-#     flowrate = trial.flowrate.magnitude
-#     diameter = trial.reactor.ID.magnitude
-#     label_text = f"Flowrate: {flowrate} mL/min, Diameter: {diameter} in."
-#     ax1.plot(
-#         trial.data["Time (s)"],
-#         trial.data["CH3 Conductivity (muS/cm)"],
-#         label=label_text,
-#     )
-# ax1.legend()
-# plt.show()
 
-# PFR Vol-Flowrate-Reynolds plot
+# %% Plots
 fig = plt.figure(figsize=(5, 3), dpi=300)
 ax1 = fig.add_subplot(111)
 short = [trial for trial in pfr_trials if trial.reactor is short_pfr]
@@ -113,10 +123,59 @@ ax1.legend()
 plt.savefig(Path(figures_dir / "pfr_flowrate_reynolds.pdf"), bbox_inches="tight")
 plt.show()
 
-# Preliminary conductivity/cumsum plot for sanity check
+# TODO Plot: Conductivity vs time
+# TODO Plot: E(t) vs time
+
+## E(t) for PFRs, all trials
 fig = plt.figure(figsize=(5, 3), dpi=300)
 ax1 = fig.add_subplot(111)
-pfr_spike = pfr_trials[0]
-t = pfr_spike.data["Time (s)"]
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("E(t) (1/s)")
+for trial in pfr_trials:
+    cond = trial.get_cond()
+    cond = Q_(cond - trial.baseline, "microsiemens / cm")
+    x = trial.get_timeseries()
+    y = rtd(cond).magnitude
+    ax1.plot(x, y)
+plt.savefig(str(figures_dir / "E_pfr_all.pdf"), bbox_inches="tight")
+plt.show()
 
-# TODO: Plot mean residence time vs. Reynolds number
+## E(t) for PFRs, color coded for length
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("E(t) (1/s)")
+for trial in pfr_trials:
+    cond = trial.get_cond()
+    cond = Q_(cond - trial.baseline, "microsiemens / cm")
+    x = trial.get_timeseries()
+    y = rtd(cond).magnitude
+    if trial.reactor.label == "short PFR":
+        ax1.plot(x, y, label="short PFR", color=colors[0]["color"])
+    elif trial.reactor.label == "long PFR":
+        ax1.plot(x, y, label="long PFR", color=colors[1]["color"])
+    handles, labels = ax1.get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+    ax1.legend(by_label.values(), by_label.keys())
+plt.savefig(str(figures_dir / "E_pfr_by_length.pdf"), bbox_inches="tight")
+plt.show()
+
+# TODO Plot: F(t) vs time
+fig = plt.figure(figsize=(5, 3), dpi=300)
+ax1 = fig.add_subplot(111)
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("F(t)")
+for trial in pfr_trials:
+    cond = trial.get_cond()
+    cond = Q_(cond - trial.baseline, "microsiemens / cm")
+    x = trial.get_timeseries()
+    y = cum_dist(cond).magnitude
+    ax1.plot(x, y)
+plt.show()
+# TODO Plot: t*E(t) vs time
+# TODO Plot: E*(t-tm)^2 (plot whose integral represents variance)
+
+
+# %% Tables
+
+# %% Output spreadsheets

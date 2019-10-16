@@ -14,12 +14,13 @@ class Reactor:
 
 
 class PFR(Reactor):
-    def __init__(self, length, OD, wall_thickness):
+    def __init__(self, length, OD, wall_thickness, label):
         super().__init__("PFR")
         self.length = length
         self.ID = OD - 2 * wall_thickness
         self.area = np.pi * (self.ID / 2) ** 2
         self.volume = self.area * self.length
+        self.label = label
 
 
 class CSTR(Reactor):
@@ -45,5 +46,19 @@ class Trial:
             self.data = pd.read_csv(csvfile)
         self.reynolds = None
 
+    def set_baseline(self, baseline):
+        self.baseline = baseline
+
     def set_reynolds(self, reynolds):
         self.reynolds = reynolds
+
+    def get_timeseries(self) -> np.array:
+        return self.data["Time (s)"]
+
+    def get_cond(self) -> np.array:
+        """ get largest-range conductivity series
+        """
+        cond_cols = [c for c in self.data.columns if "Cond" in c]
+        ranges = [self.data[c].max() - self.data[c].min() for c in cond_cols]
+        cond = self.data[cond_cols[ranges.index(max(ranges))]]
+        return cond
