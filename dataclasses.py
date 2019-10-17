@@ -47,6 +47,10 @@ class Trial:
         self.reynolds = None
         self.baseline = None
 
+    def set_peak_selection(self, t: np.array, cond: np.array):
+        self.t_selected = t
+        self.cond_selected = cond
+
     def set_baseline(self, baseline):
         self.baseline = baseline
 
