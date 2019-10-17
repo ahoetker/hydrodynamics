@@ -7,6 +7,11 @@ import pint
 ureg = pint.UnitRegistry()
 Q_ = ureg.Quantity
 
+class Impeller:
+    def __init__(self, label, diameter):
+        self.label = label
+        self.diameter = diameter
+
 
 class Reactor:
     def __init__(self, design: str):
