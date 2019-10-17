@@ -7,6 +7,7 @@ import pint
 import numpy as np
 import pandas as pd
 from collections import OrderedDict
+from typing import List, Tuple
 from dataclasses import PFR, CSTR, CSTRSeries, Trial
 
 ureg = pint.UnitRegistry()
@@ -64,6 +65,24 @@ def smooth(t, x, window_len=11, window="hanning"):
     y = np.convolve(w / w.sum(), s, mode="valid")
     ts = np.linspace(0, t[-1], len(y))
     return ts, y
+
+
+def get_zero(a: np.array) -> int:
+    for i in range(len(a) - 1):
+        if a[i] * a[i + 1] <= 0:
+            yield i + 1
+
+
+def select_peak(y: np.array, n_zeros: int) -> Tuple[np.array, np.array]:
+    t = [x for x in range(len(y))]
+    global_max_ix = np.argmax(y)
+    right = y[global_max_ix + 1:]
+    left = y[global_max_ix - 1::-1]
+    rzeros_ix = [z + global_max_ix for z in get_zero(right)][:n_zeros]
+    lzeros_ix = [global_max_ix - z for z in get_zero(left)][:n_zeros]
+    print("r: {}".format(rzeros_ix))
+    print("l: {}".format(lzeros_ix))
+    return t[lzeros_ix[-1]:rzeros_ix[-1] + 1], y[lzeros_ix[-1]:rzeros_ix[-1] + 1]
 
 
 def rtd(conductivity: np.array):
@@ -349,6 +368,18 @@ for trial in pfr_trials:
     ys = rtd(conds).magnitude * np.arange(0, len(conds))
     ax1.plot(ts, ys)
 
+plt.show()
+
+# %% testing peak selection
+trial = pfr_trials[7]
+t = np.array(trial.timeseries())
+y = np.array(trial.corrected_cond())
+ts, ys = smooth(t, y, 11, "hamming")
+t_selected, y_selected = select_peak(ys, 1)
+plt.figure()
+plt.plot(t, y, '-k', linewidth=0.5)
+# plt.plot(ts, ys, '--b')
+plt.plot(t_selected, y_selected, '-r')
 plt.show()
 
 
